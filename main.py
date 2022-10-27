@@ -1,7 +1,10 @@
 import argparse
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), 'baselines/'))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'multiagent-particle-envs/'))
+
 import torch
 import time
-import os
 import numpy as np
 from gym.spaces import Box, Discrete
 from pathlib import Path
@@ -84,6 +87,10 @@ def run(config):
             # rearrange actions to be per environment
             actions = [[ac[i] for ac in agent_actions] for i in range(config.n_rollout_threads)]
             next_obs, rewards, dones, infos = env.step(actions)
+            if (ep_i+1)%100 == 0:
+                import time
+                time.sleep(0.05)
+                env.render()
             replay_buffer.push(obs, agent_actions, rewards, next_obs, dones)
             obs = next_obs
             t += config.n_rollout_threads
@@ -104,6 +111,8 @@ def run(config):
             config.episode_length * config.n_rollout_threads)
         for a_i, a_ep_rew in enumerate(ep_rews):
             logger.add_scalar('agent%i/mean_episode_rewards' % a_i, a_ep_rew, ep_i)
+            if ep_i % 100 == 0:
+                print('agent%i/mean_episode_rewards' % a_i, a_ep_rew, ep_i)
 
         if ep_i % config.save_interval < config.n_rollout_threads:
             os.makedirs(run_dir / 'incremental', exist_ok=True)
@@ -118,8 +127,8 @@ def run(config):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("env_id", help="Name of environment")
-    parser.add_argument("model_name",
+    parser.add_argument("--env_id", default='simple_tag', type=str, help="Name of environment")
+    parser.add_argument("--model_name", default='output/maddpg', type=str,
                         help="Name of directory to store " +
                              "model/training contents")
     parser.add_argument("--seed",
